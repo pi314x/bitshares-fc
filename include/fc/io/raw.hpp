@@ -45,6 +45,34 @@ namespace fc {
        pq_format _old;
     };
 
+    /**
+     * Gated serialisation: the wrapped value reaches the wire only under pq_format::current.
+     *
+     * Defined here, next to the other generics, so that fc's own reflected packer finds it by
+     * ordinary lookup. That is the whole point of the wrapper -- see fc::pq_gated in
+     * raw_fwd.hpp for why an overload declared downstream cannot work.
+     *
+     * Under legacy nothing at all is emitted, not even a length prefix: the field is absent
+     * from the format, not merely empty in it.
+     */
+    template<typename Stream, typename T>
+    inline void pack( Stream& s, const fc::pq_gated<T>& v, uint32_t _max_depth )
+    {
+       FC_ASSERT( _max_depth > 0 );
+       if( pq_format::current == get_pq_format() )
+          pack( s, v.value, _max_depth - 1 );
+    }
+
+    template<typename Stream, typename T>
+    inline void unpack( Stream& s, fc::pq_gated<T>& v, uint32_t _max_depth )
+    {
+       FC_ASSERT( _max_depth > 0 );
+       if( pq_format::current == get_pq_format() )
+          unpack( s, v.value, _max_depth - 1 );
+       else
+          v.value = T();
+    }
+
     template<typename Stream>
     inline void pack( Stream& s, const uint128_t& v, uint32_t _max_depth )
     {

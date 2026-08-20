@@ -172,3 +172,87 @@ namespace fc {
     void set_pq_format( pq_format f );
     struct scoped_pq_format;
 } }
+
+namespace fc {
+
+/**
+ * A value that reaches the wire only under raw::pq_format::current.
+ *
+ * WHY THIS EXISTS, rather than each struct hand-writing a gated pack():
+ *
+ * fc's generic pack/unpack are templates, and the call they make to serialise a member is a
+ * dependent one. Dependent names resolve against the declarations visible where the TEMPLATE
+ * was defined -- here, inside fc -- plus ADL, which does not reach fc::raw. An overload
+ * declared later in a downstream header is therefore invisible to them. A struct that reflects
+ * a field AND hand-writes a gated pack() consequently has two different serialisers, and which
+ * one a given call site gets depends on visibility and on whether the optimiser inlined the
+ * generic template. That is not a gate; it is a coin flip that showed up as one extra byte in
+ * a Release build and not in a Debug build of the same commit.
+ *
+ * Gating at the level of the field's TYPE, declared here in fc alongside the generics, is
+ * visible to every path -- reflected or hand-written -- so the format decision cannot be
+ * bypassed however the value is reached.
+ *
+ * It is transparent to JSON: to_variant/from_variant forward straight to the wrapped value, so
+ * API and wallet shapes are unchanged.
+ */
+template<typename T>
+struct pq_gated
+{
+   T value;
+
+   pq_gated() = default;
+   pq_gated( const T& v ) : value(v) {}                             // NOLINT: implicit on purpose
+   pq_gated& operator=( const T& v ) { value = v; return *this; }
+
+   operator const T&()const { return value; }                       // NOLINT: implicit on purpose
+   operator T&() { return value; }
+
+   // Forwarders so the wrapper is a drop-in for the container it wraps.
+   auto begin()const { return value.begin(); }
+   auto end()const   { return value.end(); }
+   auto begin()      { return value.begin(); }
+   auto end()        { return value.end(); }
+   auto size()const  { return value.size(); }
+   bool empty()const { return value.empty(); }
+   void clear()      { value.clear(); }
+   template<typename U> void push_back( U&& u ) { value.push_back( std::forward<U>(u) ); }
+   template<typename U> auto insert( U&& u ) { return value.insert( std::forward<U>(u) ); }
+   const auto& back()const { return value.back(); }
+   auto& back() { return value.back(); }
+   void reserve( size_t n ) { value.reserve( n ); }
+   const auto& operator[]( size_t i )const { return value[i]; }
+   auto& operator[]( size_t i ) { return value[i]; }
+
+   friend bool operator==( const pq_gated& a, const pq_gated& b ) { return a.value == b.value; }
+   friend bool operator!=( const pq_gated& a, const pq_gated& b ) { return !(a == b); }
+};
+
+} // namespace fc
+
+namespace fc { namespace raw {
+   template<typename Stream, typename T>
+   void pack( Stream& s, const fc::pq_gated<T>& v, uint32_t _max_depth = FC_PACK_MAX_DEPTH );
+   template<typename Stream, typename T>
+   void unpack( Stream& s, fc::pq_gated<T>& v, uint32_t _max_depth = FC_PACK_MAX_DEPTH );
+} }
+
+namespace fc {
+
+class variant;
+
+/// pq_gated is transparent to JSON: the wrapper gates the BINARY format only, so API and
+/// wallet shapes are exactly what they were before the field became gated. Both bodies are
+/// dependent on T, so `variant` need only be complete where they are instantiated.
+template<typename T>
+void to_variant( const pq_gated<T>& v, variant& vo, uint32_t max_depth )
+{
+   to_variant( v.value, vo, max_depth );
+}
+template<typename T>
+void from_variant( const variant& var, pq_gated<T>& vo, uint32_t max_depth )
+{
+   from_variant( var, vo.value, max_depth );
+}
+
+}
