@@ -221,8 +221,9 @@ struct pq_gated
    const auto& back()const { return value.back(); }
    auto& back() { return value.back(); }
    void reserve( size_t n ) { value.reserve( n ); }
-   const auto& operator[]( size_t i )const { return value[i]; }
-   auto& operator[]( size_t i ) { return value[i]; }
+   template<typename K> auto& operator[]( const K& k ) { return value[k]; }
+   template<typename K> auto count( const K& k )const { return value.count( k ); }
+   template<typename K> auto find( const K& k )const { return value.find( k ); }
 
    friend bool operator==( const pq_gated& a, const pq_gated& b ) { return a.value == b.value; }
    friend bool operator!=( const pq_gated& a, const pq_gated& b ) { return !(a == b); }

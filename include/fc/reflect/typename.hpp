@@ -18,6 +18,17 @@ namespace fc {
   namespace ip { class address; }
 
   template<typename... T> struct get_typename;
+
+  template<typename T> struct pq_gated;   // fc/io/raw_fwd.hpp
+
+  /// The wrapper is transparent to everything except the binary format, so it reports the
+  /// type name of what it wraps. Custom-authority restriction predicates introspect member
+  /// type names, and they should see the field as the container it actually is.
+  template<typename T> struct get_typename< pq_gated<T> >
+  {
+     static const char* name() { return get_typename<T>::name(); }
+  };
+
 #if defined(__APPLE__) or defined(__OpenBSD__)
   template<> struct get_typename<size_t>   { static const char* name()  { return "size_t";   } };
 #endif
