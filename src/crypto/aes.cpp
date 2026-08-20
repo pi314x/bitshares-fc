@@ -412,6 +412,7 @@ unsigned long openssl_thread_config::get_thread_id()
 #endif
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 void openssl_thread_config::locking_callback(int mode, int type, const char *file, int line)
 {
   if (mode & CRYPTO_LOCK)
@@ -420,7 +421,7 @@ void openssl_thread_config::locking_callback(int mode, int type, const char *fil
     openssl_mutexes[type].unlock();
 }
 
-// Warning: Things get complicated if third-party libraries also try to install their their own 
+// Warning: Things get complicated if third-party libraries also try to install their their own
 // OpenSSL thread functions.  Right now, we don't install our own handlers if another library has
 // installed them before us which is a partial solution, but you'd really need to evaluate
 // each library that does this to make sure they will play nice.
@@ -444,5 +445,12 @@ openssl_thread_config::~openssl_thread_config()
     openssl_mutexes = nullptr;
   }
 }
+#else
+// OpenSSL 1.1.0+ manages locking internally; the manual callback API
+// (CRYPTO_num_locks / CRYPTO_set_locking_callback / CRYPTO_LOCK) was removed.
+void openssl_thread_config::locking_callback(int, int, const char *, int) {}
+openssl_thread_config::openssl_thread_config() {}
+openssl_thread_config::~openssl_thread_config() {}
+#endif
 
 }  // namespace fc

@@ -43,9 +43,10 @@ namespace  fc
 
        ~openssl_scope()
        {
-#if not defined(LIBRESSL_VERSION_NUMBER)
+#if not defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x30000000L
           // No FIPS in LibreSSL.
           // https://marc.info/?l=openbsd-misc&m=139819485423701&w=2
+          // FIPS_mode_set was removed in OpenSSL 3.0 (FIPS is now provider-based).
           FIPS_mode_set(0);
 #endif
           CONF_modules_unload(1);
