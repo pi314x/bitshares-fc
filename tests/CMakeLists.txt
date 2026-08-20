@@ -16,6 +16,9 @@ target_link_libraries( hmac_test fc )
 add_executable( ecc_test crypto/ecc_test.cpp )
 target_link_libraries( ecc_test fc )
 
+add_executable( pqc_test crypto/pqc_test.cpp )
+target_link_libraries( pqc_test fc )
+
 add_executable( ws_test_server ws_test_server.cpp )
 target_link_libraries( ws_test_server fc )
 

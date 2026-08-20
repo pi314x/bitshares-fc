@@ -216,6 +216,7 @@ set( fc_sources
      src/crypto/elliptic_impl_priv.cpp
      src/crypto/elliptic_secp256k1.cpp
      src/crypto/rand.cpp
+     src/crypto/pqc.cpp
      src/network/tcp_socket.cpp
      src/network/udp_socket.cpp
      src/network/http/http_connection.cpp
@@ -238,6 +239,7 @@ list(APPEND sources "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cpp")
 list(APPEND sources ${fc_headers})
 
 add_subdirectory( vendor/websocketpp EXCLUDE_FROM_ALL )
+add_subdirectory( vendor/pqclean )
 
 add_library( fc ${sources} )
 install( DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION include )
@@ -341,7 +343,7 @@ IF(NOT WIN32)
 ENDIF()
 target_link_libraries( fc PUBLIC ${LINK_USR_LOCAL_LIB}  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${Boost_LIBRARIES}
                                  ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library}
-                                 ${editline_libraries} secp256k1 ${CMAKE_REQUIRED_LIBRARIES} )
+                                 ${editline_libraries} secp256k1 pqclean ${CMAKE_REQUIRED_LIBRARIES} )
 
 if(WIN32 AND MSVC)
     set_source_files_properties( src/network/http/websocket.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )

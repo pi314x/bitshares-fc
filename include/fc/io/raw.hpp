@@ -25,6 +25,26 @@ namespace fc {
        pack( s, args..., _max_depth );
     }
 
+    // pq_format, get_pq_format, set_pq_format, scoped_pq_format are
+    // declared in raw_fwd.hpp.  The inline definitions live here.
+
+    namespace detail {
+       inline pq_format& pq_format_storage() {
+          static thread_local pq_format fmt = pq_format::legacy;
+          return fmt;
+       }
+    }
+    inline pq_format get_pq_format() { return detail::pq_format_storage(); }
+    inline void set_pq_format( pq_format f ) { detail::pq_format_storage() = f; }
+
+    struct scoped_pq_format {
+       explicit scoped_pq_format( pq_format f ) : _old( get_pq_format() ) { set_pq_format( f ); }
+       ~scoped_pq_format() { set_pq_format( _old ); }
+       scoped_pq_format( const scoped_pq_format& ) = delete;
+       scoped_pq_format& operator=( const scoped_pq_format& ) = delete;
+       pq_format _old;
+    };
+
     template<typename Stream>
     inline void pack( Stream& s, const uint128_t& v, uint32_t _max_depth )
     {

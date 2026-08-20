@@ -162,4 +162,13 @@ namespace fc {
     template<typename T> inline T unpack( const std::vector<char>& s, uint32_t _max_depth=FC_PACK_MAX_DEPTH );
     template<typename T> inline T unpack( const char* d, uint32_t s, uint32_t _max_depth=FC_PACK_MAX_DEPTH );
     template<typename T> inline void unpack( const char* d, uint32_t s, T& v, uint32_t _max_depth=FC_PACK_MAX_DEPTH );
+
+    /**
+     * Dual-format serialization context (defined in raw.hpp).
+     * `legacy` reproduces the pre-PQ wire format; `current` includes pq_* fields.
+     */
+    enum class pq_format : uint8_t { legacy, current };
+    pq_format get_pq_format();
+    void set_pq_format( pq_format f );
+    struct scoped_pq_format;
 } }
