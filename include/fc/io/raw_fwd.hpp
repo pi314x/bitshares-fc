@@ -221,6 +221,14 @@ struct pq_gated
    const auto& back()const { return value.back(); }
    auto& back() { return value.back(); }
    void reserve( size_t n ) { value.reserve( n ); }
+   // fc::optional-shaped access, so an optional field can be gated as readily as a container.
+   bool valid()const { return value.valid(); }
+   auto& operator*() { return *value; }
+   const auto& operator*()const { return *value; }
+   auto* operator->() { return &(*value); }
+   const auto* operator->()const { return &(*value); }
+   void reset() { value.reset(); }
+
    template<typename K> auto& operator[]( const K& k ) { return value[k]; }
    template<typename K> auto count( const K& k )const { return value.count( k ); }
    template<typename K> auto find( const K& k )const { return value.find( k ); }
@@ -239,21 +247,11 @@ namespace fc { namespace raw {
 } }
 
 namespace fc {
-
-class variant;
-
-/// pq_gated is transparent to JSON: the wrapper gates the BINARY format only, so API and
-/// wallet shapes are exactly what they were before the field became gated. Both bodies are
-/// dependent on T, so `variant` need only be complete where they are instantiated.
-template<typename T>
-void to_variant( const pq_gated<T>& v, variant& vo, uint32_t max_depth )
-{
-   to_variant( v.value, vo, max_depth );
-}
-template<typename T>
-void from_variant( const variant& var, pq_gated<T>& vo, uint32_t max_depth )
-{
-   from_variant( var, vo.value, max_depth );
-}
-
+   class variant;
+   // Defined in fc/reflect/variant.hpp, where fc's own to_variant overloads for optional and
+   // the containers are visible to ordinary lookup. Declaring them here and defining them
+   // there is deliberate: a body written here would resolve to the reflected fallback and
+   // demand that optional<vector<char>> be a reflected struct.
+   template<typename T> void to_variant( const pq_gated<T>& v, variant& vo, uint32_t max_depth );
+   template<typename T> void from_variant( const variant& var, pq_gated<T>& vo, uint32_t max_depth );
 }

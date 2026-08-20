@@ -4,10 +4,28 @@
 
 namespace fc
 {
+   template<typename T> struct pq_gated;   // fc/io/raw_fwd.hpp
+
    template<typename T>
    void to_variant( const T& o, variant& v, uint32_t max_depth );
    template<typename T>
    void from_variant( const variant& v, T& o, uint32_t max_depth );
+
+   /// pq_gated is transparent to JSON: the wrapper gates the BINARY format only, so API and
+   /// wallet shapes are unchanged by a field becoming gated.
+   template<typename T>
+   void to_variant( const pq_gated<T>& g, variant& v, uint32_t max_depth )
+   {
+      // Through variant's own constructor rather than to_variant(): fc handles optional (and
+      // the containers) there, whereas the generic to_variant falls through to the reflected
+      // struct path and demands that optional<X> be a reflected type, which it is not.
+      v = variant( g.value, max_depth );
+   }
+   template<typename T>
+   void from_variant( const variant& v, pq_gated<T>& g, uint32_t max_depth )
+   {
+      from_variant( v, g.value, max_depth );
+   }
 
 
    template<typename T>
