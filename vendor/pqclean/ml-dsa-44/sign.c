@@ -7,11 +7,13 @@
 #include "sign.h"
 #include "symmetric.h"
 #include <stdint.h>
+#include <string.h>
 
 /*************************************************
-* Name:        PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair
+* Name:        PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair_derand
 *
-* Description: Generates public and private key.
+* Description: Generates public and private key from the caller-supplied
+*              32-byte seed xi (FIPS 204 Algorithm 6).
 *
 * Arguments:   - uint8_t *pk: pointer to output public key (allocated
 *                             array of PQCLEAN_MLDSA44_CLEAN_CRYPTO_PUBLICKEYBYTES bytes)
@@ -20,7 +22,8 @@
 *
 * Returns 0 (success)
 **************************************************/
-int PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair(uint8_t *pk, uint8_t *sk) {
+int PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair_derand(uint8_t *pk, uint8_t *sk,
+        const uint8_t seed[SEEDBYTES]) {
     uint8_t seedbuf[2 * SEEDBYTES + CRHBYTES];
     uint8_t tr[TRBYTES];
     const uint8_t *rho, *rhoprime, *key;
@@ -28,8 +31,8 @@ int PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair(uint8_t *pk, uint8_t *sk) {
     polyvecl s1, s1hat;
     polyveck s2, t1, t0;
 
-    /* Get randomness for rho, rhoprime and key */
-    randombytes(seedbuf, SEEDBYTES);
+    /* xi, supplied by the caller (FIPS 204 Algorithm 6 input) */
+    memcpy(seedbuf, seed, SEEDBYTES);
     seedbuf[SEEDBYTES + 0] = K;
     seedbuf[SEEDBYTES + 1] = L;
     shake256(seedbuf, 2 * SEEDBYTES + CRHBYTES, seedbuf, SEEDBYTES + 2);
@@ -64,6 +67,22 @@ int PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair(uint8_t *pk, uint8_t *sk) {
     PQCLEAN_MLDSA44_CLEAN_pack_sk(sk, rho, tr, key, &t0, &s1, &s2);
 
     return 0;
+}
+
+/*************************************************
+* Name:        PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair
+*
+* Description: Generates public and private key, drawing xi from the system
+*              RNG. Split from the _derand form above so that FIPS 204
+*              known-answer vectors, which supply xi, can be run against the
+*              exact code path used in production. This mirrors what upstream
+*              PQClean already does for ML-KEM (crypto_kem_keypair_derand).
+*              Behaviour of this function is unchanged.
+**************************************************/
+int PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair(uint8_t *pk, uint8_t *sk) {
+    uint8_t seed[SEEDBYTES];
+    randombytes(seed, SEEDBYTES);
+    return PQCLEAN_MLDSA44_CLEAN_crypto_sign_keypair_derand(pk, sk, seed);
 }
 
 /*************************************************

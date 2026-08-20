@@ -19,6 +19,13 @@ target_link_libraries( ecc_test fc )
 add_executable( pqc_test crypto/pqc_test.cpp )
 target_link_libraries( pqc_test fc )
 
+add_executable( pqc_kat_test crypto/pqc_kat_test.cpp )
+target_link_libraries( pqc_kat_test fc )
+# The NIST vectors are read at runtime rather than baked into the binary: they stay in their
+# original ACVP form, so any entry can be diffed against the upstream file by tcId.
+target_compile_definitions( pqc_kat_test PRIVATE
+                            FC_PQC_KAT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/crypto/pqc_kat" )
+
 add_executable( ws_test_server ws_test_server.cpp )
 target_link_libraries( ws_test_server fc )
 

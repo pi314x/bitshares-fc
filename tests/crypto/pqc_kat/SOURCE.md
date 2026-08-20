@@ -1,0 +1,58 @@
+# FIPS 203 / FIPS 204 known-answer vectors
+
+These files are extracted subsets of NIST's own ACVP test vectors. They exist to answer a
+question the rest of the test suite cannot: the other tests show that this code is
+*self-consistent* — what it encrypts, it decrypts; what it signs, it verifies — and a
+self-consistent implementation of the *wrong* algorithm would pass every one of them. These
+vectors check the implementation against the standard's own answers.
+
+## Provenance
+
+| | |
+|---|---|
+| Source | <https://github.com/usnistgov/ACVP-Server> |
+| Path | `gen-val/json-files/<algorithm>/internalProjection.json` |
+| Commit | `975de31eb83d87039ec88934fdc47d8c312b892d` (`master`) |
+| Retrieved | 2026-08-20 |
+
+`internalProjection.json` carries both the inputs and NIST's expected outputs. Each file here
+is a verbatim subset: the test group matching the parameter set this project uses, with only
+the fields the test reads. Values are unmodified, so any entry can be checked against the
+upstream file by `tcId`.
+
+## What is here
+
+| File | Operation | Vectors |
+|---|---|---|
+| `ml-kem-768-keygen.json` | `(d, z) → (ek, dk)` | 25 |
+| `ml-kem-768-encap.json` | `(ek, m) → (c, K)` | 25 |
+| `ml-kem-768-decap.json` | `(dk, c) → K` | 10 |
+| `ml-dsa-65-keygen.json` | `ξ → (pk, sk)` | 25 |
+| `ml-dsa-65-sigver.json` | `verify(pk, M, ctx, σ)` | 15 (3 valid, 12 tampered) |
+
+Only the parameter sets this project actually uses are included: **ML-KEM-768** and
+**ML-DSA-65**. The vendored tree also builds ML-KEM-512/1024 and ML-DSA-44/87, which are
+untested here because nothing consumes them.
+
+The `sigVer` vectors are the `external` / `pure` group, which is what
+`crypto_sign_verify_ctx` implements. Twelve of the fifteen are negative cases carrying a
+`reason` field naming the tampering — modified message, modified `z`, modified commitment,
+modified hint. Those are the valuable ones: a verifier that accepted forgeries would pass a
+suite made only of valid signatures.
+
+## What is not covered
+
+- **ML-DSA signature generation.** FIPS 204 deterministic signing requires `rnd = 0`, and the
+  vendored `crypto_sign_signature_ctx` always draws `rnd` from the RNG (the hedged variant).
+  Testing sigGen against NIST vectors needs a deterministic entry point that does not exist
+  yet. Signing correctness is currently covered only indirectly: signatures this code
+  produces verify under a verifier that *is* checked against NIST vectors here.
+- **ML-KEM encapsulation-key and decapsulation-key validity checks** (ACVP
+  `encapsulationKeyCheck` / `decapsulationKeyCheck` groups). The vendored code performs the
+  modulus and hash checks inline rather than exposing them separately.
+- Side-channel behaviour. These vectors say nothing about timing or power analysis.
+
+## Regenerating
+
+`tools/fetch_pqc_kat.py` re-downloads from the URL above and rewrites these files. Re-run it
+to move to a newer ACVP revision, and update the commit hash in the table above.
