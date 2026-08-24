@@ -100,12 +100,13 @@ int PQCLEAN_MLDSA65_CLEAN_crypto_sign_keypair(uint8_t *pk, uint8_t *sk) {
 *
 * Returns 0 (success) or -1 (context string too long)
 **************************************************/
-int PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx(uint8_t *sig,
+int PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx_derand(uint8_t *sig,
         size_t *siglen,
         const uint8_t *m,
         size_t mlen,
         const uint8_t *ctx,
         size_t ctxlen,
+        const uint8_t *rnd_in,
         const uint8_t *sk) {
     unsigned int n;
     uint8_t seedbuf[2 * SEEDBYTES + TRBYTES + RNDBYTES + 2 * CRHBYTES];
@@ -140,7 +141,10 @@ int PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx(uint8_t *sig,
     shake256_inc_squeeze(mu, CRHBYTES, &state);
     shake256_inc_ctx_release(&state);
 
-    randombytes(rnd, RNDBYTES);
+    /* Caller-supplied hedging randomness. FIPS 204 sigGen vectors fix this value --
+       deterministic mode uses all zeros -- and a signature cannot be checked against a
+       known answer while the function draws it from the RNG itself. */
+    memcpy(rnd, rnd_in, RNDBYTES);
     shake256(rhoprime, CRHBYTES, key, SEEDBYTES + RNDBYTES + CRHBYTES);
 
     /* Expand matrix and transform vectors */
@@ -211,6 +215,25 @@ rej:
     PQCLEAN_MLDSA65_CLEAN_pack_sig(sig, sig, &z, &h);
     *siglen = PQCLEAN_MLDSA65_CLEAN_CRYPTO_BYTES;
     return 0;
+}
+
+/*************************************************
+* Name:        PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx
+*
+* Description: Draws the hedging randomness and defers to the _derand form above. Split the
+*              same way PQClean already splits key generation, so that FIPS 204 sigGen known
+*              answers can be reproduced exactly.
+**************************************************/
+int PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx(uint8_t *sig,
+        size_t *siglen,
+        const uint8_t *m,
+        size_t mlen,
+        const uint8_t *ctx,
+        size_t ctxlen,
+        const uint8_t *sk) {
+    uint8_t rnd[RNDBYTES];
+    randombytes(rnd, RNDBYTES);
+    return PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx_derand(sig, siglen, m, mlen, ctx, ctxlen, rnd, sk);
 }
 
 /*************************************************

@@ -41,6 +41,22 @@ WANTED = [
                 and g.get("preHash") == "pure"
                 and not g.get("externalMu")),
      ("tcId", "pk", "message", "context", "signature", "testPassed", "reason")),
+    # sigGen, external/pure like sigVer. Split into the two groups rather than merged,
+    # because they differ in exactly the field that makes signing reproducible:
+    # deterministic fixes the hedging randomness at all zeros and carries no "rnd" per case,
+    # hedged supplies one. "deterministic" itself is a GROUP property and lands in the meta.
+    ("ml-dsa-65-siggen-det.json", "ML-DSA-sigGen-FIPS204", "ML-DSA-65",
+     lambda g: (g.get("signatureInterface") == "external"
+                and g.get("preHash") == "pure"
+                and not g.get("externalMu")
+                and g.get("deterministic") is True),
+     ("tcId", "sk", "message", "context", "signature")),
+    ("ml-dsa-65-siggen-hedged.json", "ML-DSA-sigGen-FIPS204", "ML-DSA-65",
+     lambda g: (g.get("signatureInterface") == "external"
+                and g.get("preHash") == "pure"
+                and not g.get("externalMu")
+                and g.get("deterministic") is False),
+     ("tcId", "sk", "message", "context", "signature", "rnd")),
 ]
 
 
@@ -87,7 +103,7 @@ def main():
                 "vectorSetId": doc.get("vsId"),
                 "tgId": group["tgId"],
                 "acvpCommit": sha}
-        for key in ("signatureInterface", "preHash"):
+        for key in ("signatureInterface", "preHash", "deterministic"):
             if key in group:
                 meta[key] = group[key]
 

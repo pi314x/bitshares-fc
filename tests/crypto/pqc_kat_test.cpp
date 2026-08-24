@@ -37,6 +37,11 @@ extern "C" {
                                               const uint8_t* sk );
    int PQCLEAN_MLDSA65_CLEAN_crypto_sign_keypair_derand( uint8_t* pk, uint8_t* sk,
                                                          const uint8_t* seed );
+   int PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx_derand( uint8_t* sig, size_t* siglen,
+                                                               const uint8_t* m, size_t mlen,
+                                                               const uint8_t* ctx, size_t ctxlen,
+                                                               const uint8_t* rnd,
+                                                               const uint8_t* sk );
    int PQCLEAN_MLDSA65_CLEAN_crypto_sign_verify_ctx( const uint8_t* sig, size_t siglen,
                                                      const uint8_t* m, size_t mlen,
                                                      const uint8_t* ctx, size_t ctxlen,
@@ -194,6 +199,63 @@ void ml_dsa_65_keygen()
    }
 }
 
+/**
+ * sigGen. The half of ML-DSA that keyGen and sigVer between them do not cover.
+ *
+ * Signing is randomised: FIPS 204 mixes a 32-byte hedging value into rhoprime, so the same key
+ * and message produce a different signature every time and there is nothing to compare against
+ * a known answer. That is why this vector set was missing -- not because signing mattered less,
+ * but because the entry point drew that value from the RNG itself and gave the caller no say.
+ *
+ * PQClean already splits key generation this way (crypto_sign_keypair_derand); signing now
+ * splits the same way, and the vectors drive it directly. Deterministic groups fix the value at
+ * 32 zero bytes, hedged groups supply their own, and both must reproduce NIST's signature byte
+ * for byte.
+ *
+ * Reproducing a signature exactly is a far stronger statement than verifying one: a signer with
+ * the wrong nonce derivation, the wrong domain separation or the wrong context encoding still
+ * produces signatures its own verifier accepts. Only a known answer catches that.
+ */
+void ml_dsa_65_siggen()
+{
+   const auto run = [&]( const char* file, const std::vector<uint8_t>& fixed_rnd )
+   {
+      int seen = 0;
+      for( const auto& tv : load( file ) )
+      {
+         const auto& t = tv.get_object();
+         auto sk  = unhex( str( t, "sk" ) );
+         auto msg = unhex( str( t, "message" ) );
+         auto ctx = unhex( str( t, "context" ) );
+         auto expected = unhex( str( t, "signature" ) );
+         const std::vector<uint8_t> rnd =
+               fixed_rnd.empty() ? unhex( str( t, "rnd" ) ) : fixed_rnd;
+
+         std::vector<uint8_t> sig( expected.size() );
+         size_t siglen = 0;
+         int rc = PQCLEAN_MLDSA65_CLEAN_crypto_sign_signature_ctx_derand(
+                     sig.data(), &siglen, msg.data(), msg.size(),
+                     ctx.empty() ? nullptr : ctx.data(), ctx.size(),
+                     rnd.data(), sk.data() );
+
+         const std::string id = std::string( "sigGen " ) + file + " tcId "
+                              + t["tcId"].as_string();
+         check( 0 == rc, id + ": signing failed" );
+         check( siglen == expected.size(), id + ": wrong signature length" );
+         sig.resize( siglen );
+         check( same( sig, expected, id ), id + ": signature does not match the known answer" );
+         ++seen;
+      }
+      // A vector file that silently became empty would otherwise report as a pass.
+      check( seen > 0, std::string( "sigGen " ) + file + ": no test cases were run" );
+   };
+
+   // Deterministic mode is rnd = 32 zero bytes, per FIPS 204. The vectors carry no rnd field
+   // for these groups precisely because it is fixed.
+   run( "ml-dsa-65-siggen-det.json", std::vector<uint8_t>( 32, 0 ) );
+   run( "ml-dsa-65-siggen-hedged.json", {} );
+}
+
 void ml_dsa_65_sigver()
 {
    int valid_seen = 0, invalid_seen = 0;
@@ -240,6 +302,7 @@ int main()
       ml_kem_768_decap();
       ml_dsa_65_keygen();
       ml_dsa_65_sigver();
+   ml_dsa_65_siggen();
    }
    catch( const fc::exception& e )
    {

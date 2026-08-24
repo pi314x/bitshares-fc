@@ -29,6 +29,8 @@ upstream file by `tcId`.
 | `ml-kem-768-decap.json` | `(dk, c) → K` | 10 |
 | `ml-dsa-65-keygen.json` | `ξ → (pk, sk)` | 25 |
 | `ml-dsa-65-sigver.json` | `verify(pk, M, ctx, σ)` | 15 (3 valid, 12 tampered) |
+| `ml-dsa-65-siggen-det.json` | `sign(sk, M, ctx)`, rnd = 32 zero bytes | 15 |
+| `ml-dsa-65-siggen-hedged.json` | `sign(sk, M, ctx, rnd)` | 15 |
 
 Only the parameter sets this project actually uses are included: **ML-KEM-768** and
 **ML-DSA-65**. The vendored tree also builds ML-KEM-512/1024 and ML-DSA-44/87, which are
@@ -56,3 +58,16 @@ suite made only of valid signatures.
 
 `tools/fetch_pqc_kat.py` re-downloads from the URL above and rewrites these files. Re-run it
 to move to a newer ACVP revision, and update the commit hash in the table above.
+
+## Why sigGen is split in two
+
+Signing is randomised: FIPS 204 mixes a 32-byte hedging value into `rhoprime`, so the same key
+and message give a different signature each time. ACVP therefore has two groups, and they
+differ in exactly the field that makes signing reproducible — the deterministic group fixes the
+value at 32 zero bytes and carries no `rnd` per case, the hedged group supplies one. Merging
+them into a single file would mean a schema where a required field is sometimes absent, so they
+are kept apart and each is internally consistent.
+
+Reproducing a signature is a much stronger statement than verifying one. A signer with the
+wrong nonce derivation, the wrong domain separation or the wrong context encoding still
+produces signatures its own verifier accepts; only a known answer catches that.
