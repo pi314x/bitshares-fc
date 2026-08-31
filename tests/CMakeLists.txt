@@ -19,6 +19,9 @@ target_link_libraries( ecc_test fc )
 add_executable( pqc_test crypto/pqc_test.cpp )
 target_link_libraries( pqc_test fc )
 
+add_executable( pqc_load_test crypto/pqc_load_test.cpp )
+target_link_libraries( pqc_load_test fc )
+
 add_executable( pqc_kat_test crypto/pqc_kat_test.cpp )
 target_link_libraries( pqc_kat_test fc )
 # The NIST vectors are read at runtime rather than baked into the binary: they stay in their

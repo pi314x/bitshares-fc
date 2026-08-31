@@ -44,11 +44,8 @@ suite made only of valid signatures.
 
 ## What is not covered
 
-- **ML-DSA signature generation.** FIPS 204 deterministic signing requires `rnd = 0`, and the
-  vendored `crypto_sign_signature_ctx` always draws `rnd` from the RNG (the hedged variant).
-  Testing sigGen against NIST vectors needs a deterministic entry point that does not exist
-  yet. Signing correctness is currently covered only indirectly: signatures this code
-  produces verify under a verifier that *is* checked against NIST vectors here.
+- **ML-DSA parameter sets other than 65.** The vendored tree also builds ML-DSA-44 and -87,
+  which nothing in this codebase consumes; only the set in use carries vectors.
 - **ML-KEM encapsulation-key and decapsulation-key validity checks** (ACVP
   `encapsulationKeyCheck` / `decapsulationKeyCheck` groups). The vendored code performs the
   modulus and hash checks inline rather than exposing them separately.
