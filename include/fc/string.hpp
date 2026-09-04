@@ -1,6 +1,7 @@
 #pragma once
 #include <fc/fwd.hpp>
 #include <fc/optional.hpp>
+#include <cstdint>   // int64_t und Geschwister, unten benutzt
 #include <string>
 
 namespace fc
