@@ -1,7 +1,7 @@
 #
 # Defines fc library target.
 
-CMAKE_MINIMUM_REQUIRED( VERSION 3.2 FATAL_ERROR )
+CMAKE_MINIMUM_REQUIRED( VERSION 3.5 FATAL_ERROR )
 PROJECT( fc )
 
 set( CMAKE_CXX_STANDARD 14 )
@@ -238,7 +238,18 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/git_revision.cpp.in" "${CMAKE_CU
 list(APPEND sources "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cpp")
 list(APPEND sources ${fc_headers})
 
+# Das vendorierte websocketpp deklariert noch cmake_minimum_required(2.6). CMake 4 hat die
+# Vertraeglichkeit mit allem unter 3.5 entfernt und bricht dort ab -- das Verzeichnis wird
+# trotz EXCLUDE_FROM_ALL konfiguriert. websocketpp ist ein eigenes Repository (Submodul), also
+# wird hier nicht dessen Datei geaendert, sondern die Mindestfassung nur fuer diesen einen
+# Aufruf angehoben und danach wieder zurueckgenommen. Aeltere CMake-Fassungen kennen die
+# Variable nicht und ignorieren sie.
+#
+# Die install-Regeln von websocketpp sind der Grund, warum das Unterverzeichnis nicht einfach
+# entfernt wird: es definiert zwar keine Ziele, installiert aber seine Header.
+set( CMAKE_POLICY_VERSION_MINIMUM 3.5 )
 add_subdirectory( vendor/websocketpp EXCLUDE_FROM_ALL )
+unset( CMAKE_POLICY_VERSION_MINIMUM )
 
 add_library( fc ${sources} )
 install( DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION include )
